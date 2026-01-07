@@ -6,7 +6,7 @@ local Logger = require(script.Parent.Logger)
 
 local PersistenceHandler = {}
 
--- Fila de concorrência (Impede que 2 salvamentos da mesma chave se atropelem)
+-- Fila de concorrência (Impede que 2 threads no mesmo servidor tentem salvar o mesmo player)
 local UpdateQueue: {[string]: {thread}} = {}
 
 local function WaitInQueue(key: string)
@@ -28,69 +28,59 @@ local function NextInQueue(key: string)
 	end
 end
 
--- [GET] - Agora retorna o KeyInfo para verificarmos o Lock no Init
-function PersistenceHandler.Get(storeName: string, scope: string, key: string)
-	local store = DataStoreService:GetDataStore(storeName, scope)
-	Budget.WaitForBudget(Enum.DataStoreRequestType.GetAsync)
-	
-	local success, result, info = pcall(function()
-		return store:GetAsync(key)
-	end)
-	
-	return success, result, info
-end
-
--- [UPDATE SAFE] - O substituto Senior do SetAsync
+-- [UPDATE SAFE] - Sincronizado com o Init.lua
 function PersistenceHandler.UpdateSafe(
 	storeName: string, 
-	scope: string, 
+	jobId: string, -- Recebe o JobId da sessão para o Lock
 	key: string, 
 	transformFunc: (any) -> any, 
 	userIds: {number}?, 
 	isReleasing: boolean
 )
-	local store = DataStoreService:GetDataStore(storeName, scope)
+	local store = DataStoreService:GetDataStore(storeName) -- Usamos apenas o Name para centralizar
 	
-	WaitInQueue(key) -- Entra na fila (SOLID: Ordem de execução)
+	WaitInQueue(key) 
 
 	Budget.WaitForBudget(Enum.DataStoreRequestType.SetIncrementAsync)
 	
 	local success, result = pcall(function()
 		return store:UpdateAsync(key, function(oldData, keyInfo)
-			-- Lógica de Session Lock (Igual ao ProfileStore)
+			-- 1. LÓGICA DE SESSION LOCK (Anti-Dupe)
 			if keyInfo then
 				local metadata = keyInfo:GetMetadata()
 				local currentLock = metadata[Config.METADATA_KEY]
 				
-				-- Se outro servidor assumiu o lock e não estamos forçando a entrada, aborta
-				if currentLock and currentLock ~= "" and currentLock ~= game.JobId then
-					Logger.Warn("Tentativa de sobrescrever Lock de outro servidor: " .. key, "Persistence")
-					return nil -- Cancela o UpdateAsync sem erro, mas sem salvar
+				-- Se o Lock pertence a outro JobId e não está vazio, abortamos
+				if currentLock and currentLock ~= "" and currentLock ~= jobId then
+					Logger.Warn("Acesso Negado: Chave " .. key .. " está trancada por " .. tostring(currentLock), "Persistence")
+					return nil -- Aborta o Update sem salvar
 				end
 			end
 
-			-- Executa a transformação dos dados
+			-- 2. TRANSFORMAÇÃO DOS DADOS (Reconciler ou Save)
 			local newData = transformFunc(oldData)
 			
-			-- Configura os Metadados para o próximo salvamento
+			-- 3. CONFIGURAÇÃO DE METADADOS E GDPR
 			local options = Instance.new("DataStoreSetOptions")
+			
+			-- O segredo do Lock: Se estivermos a dar Release, limpamos o metadado
 			options:SetMetadata({
-				[Config.METADATA_KEY] = isReleasing and "" or game.JobId
+				[Config.METADATA_KEY] = isReleasing and "" or jobId
 			})
 			
-			-- O UpdateAsync permite associar UserIds para GDPR
-			if userIds then
-				options:SetSetUserIds(userIds)
+			-- Vínculo legal de UserIds (DIREITO DE SER ESQUECIDO)
+			if userIds and #userIds > 0 then
+				options:SetSetUserIds(userIds) -- O método correto do Roblox para GDPR
 			end
 
 			return newData, userIds, options
 		end)
 	end)
 	
-	NextInQueue(key) -- Libera a fila para o próximo processo
+	NextInQueue(key) 
 	
 	if not success then
-		Logger.Critical("Falha no UpdateSafe: " .. tostring(result), "Persistence")
+		Logger.Critical("Falha crítica no DataStore: " .. tostring(result), "Persistence")
 	end
 
 	return success, result
