@@ -5,7 +5,7 @@ local Config = require(script.Parent.Config)
 
 local SessionManager = {}
 
--- Tipagem estrita para evitar erros de comunicação (Nível Pro)
+-- Tipagem estrita para evitar erros de comunicação
 export type NetworkMessage = {
     Type: "RequestRelease" | "Released" | "GlobalUpdate",
     SessionID: string,
@@ -17,16 +17,16 @@ export type NetworkMessage = {
 
 local TOPIC_NAME = "Persistence_Global_Comm"
 
--- [LISTEN] - Ouve e filtra mensagens que não são para este servidor
+-- Ouve e filtra mensagens que não são para este servidor
 function SessionManager.Listen(sessionId: string, callback: (NetworkMessage) -> ())
     local success, connection = pcall(function()
         return MessagingService:SubscribeAsync(TOPIC_NAME, function(receipt)
             local message: NetworkMessage = receipt.Data
             
             -- SÓ processa se:
-            -- 1. For para este Jogador/Sessão
-            -- 2. Não for uma mensagem que este próprio servidor enviou
-            -- 3. For direcionada para este JobId ou para "Any"
+            --  For para este Jogador/Sessão
+            --  Não for uma mensagem que este próprio servidor enviou
+            --  For direcionada para este JobId ou para "Any"
             if tostring(message.SessionID) == tostring(sessionId) then
                 if message.SourceJobId ~= game.JobId then
                     if message.TargetJobId == game.JobId or message.TargetJobId == "Any" then
@@ -44,7 +44,7 @@ function SessionManager.Listen(sessionId: string, callback: (NetworkMessage) -> 
     return connection
 end
 
--- [BROADCAST] - Envia comandos para os outros servidores
+--  Envia comandos para os outros servidores
 function SessionManager.Broadcast(sessionId: string, payload: {Type: string, Key: string, TargetJobId: string?, Data: any?})
     local fullPayload: NetworkMessage = {
         Type = payload.Type,
