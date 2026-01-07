@@ -20,7 +20,7 @@ function AutoSaver.RegisterSession(session: any, key: string)
 	Logger.Info("Sessão registrada no Auto-Save: " .. key, "AutoSaver")
 end
 
--- [UNREGISTER]
+-- UNREGISTER --
 function AutoSaver.UnregisterSession(key: string)
 	for i, entry in ipairs(activeSessions) do
 		if entry.key == key then
@@ -30,7 +30,7 @@ function AutoSaver.UnregisterSession(key: string)
 	end
 end
 
--- [START]
+-- START --
 function AutoSaver.Start()
 	if isRunning then return end
 	isRunning = true
