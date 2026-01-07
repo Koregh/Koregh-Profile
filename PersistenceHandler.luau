@@ -63,7 +63,7 @@ function PersistenceHandler.UpdateSafe(
 			-- CONFIGURAÇÃO DE METADADOS E GDPR --
 			local options = Instance.new("DataStoreSetOptions")
 			
-			-- O segredo do Lock: Se estivermos a dar Release, limpamos o metadado
+			-- Se estivermos a dar Release, limpamos o metadado
 			options:SetMetadata({
 				[Config.METADATA_KEY] = isReleasing and "" or jobId
 			})
