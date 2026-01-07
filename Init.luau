@@ -127,7 +127,7 @@ function DataSession:Save(key: string, isReleasing: boolean?)
     end
 end
 
--- [GDPR: DIREITO DE SER ESQUECIDO]
+-- GDPR: DIREITO DE SER ESQUECIDO --
 -- Este método apaga os dados permanentemente do DataStore
 function DataSession:WipeData(key: string)
     Logger.Warn("Iniciando remoção permanente de dados (GDPR): " .. key)
