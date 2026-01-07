@@ -32,8 +32,9 @@ Encerramento de Sessão
 -- Libera o Session Lock e realiza o salvamento final
 session:Release("User_123")
 
-# 📜 Créditos e Licença
+#  Créditos e Licença
 Este projeto é distribuído sob a Licença MIT.
  * Lógica Original e Core: realkastien
  * Refatoração e Arquitetura: Koregh
  * Data de Refatoração: Janeiro de 2026
+ * Link: https://github.com/realkastien/DataSession
