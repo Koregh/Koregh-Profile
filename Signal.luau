@@ -15,7 +15,7 @@ function Signal.new()
 	}, Signal)
 end
 
--- [CONNECT] - Adiciona um ouvinte
+--  Adiciona um ouvinte
 function Signal:Connect(fn: (...any) -> ()): Connection
 	local connection = {
 		_fn = fn,
@@ -32,14 +32,14 @@ function Signal:Connect(fn: (...any) -> ()): Connection
 	return connection
 end
 
--- [FIRE] - Dispara o evento
+--  Dispara o evento
 function Signal:Fire(...)
 	for _, listener in ipairs(self._listeners) do
 		task.spawn(listener._fn, ...)
 	end
 end
 
--- [WAIT] - Pausa a execução até o sinal ser disparado (Crucial para o Load)
+-- Pausa a execução até o sinal ser disparado (Crucial para o Load)
 function Signal:Wait(): ...any
 	local thread = coroutine.running()
 	local connection: Connection
@@ -52,7 +52,7 @@ function Signal:Wait(): ...any
 	return coroutine.yield()
 end
 
--- [DESTROY] - Limpa tudo para evitar memory leak
+-- Limpa tudo para evitar memory leak
 function Signal:Destroy()
 	table.clear(self._listeners)
 end
