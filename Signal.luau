@@ -1,5 +1,5 @@
 --!strict
--- DataService / Signal.lua
+-- Signal.lua
 local Signal = {}
 Signal.__index = Signal
 
