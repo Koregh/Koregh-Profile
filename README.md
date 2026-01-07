@@ -3,6 +3,6 @@ Este framework é um sistema de persistência de dados de para Roblox, construí
 
 # Créditos e Licença
 Este projeto é distribuído sob a Licença MIT.
-Lógica Original e Core: realkastien
-Refatoração e Arquitetura: Koregh
-Data de Refatoração: Janeiro de 2026
+- Lógica Original e Core: realkastien
+- Refatoração e Arquitetura: Koregh
+- Data de Refatoração: Janeiro de 2026
