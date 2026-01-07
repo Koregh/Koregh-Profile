@@ -3,7 +3,7 @@ local Logger = require(script.Parent.Logger)
 
 local DataProcessor = {}
 
--- [FUNÇÃO AUXILIAR] - Limpa dados que o Roblox não salva (Instâncias, CFrames, etc)
+-- Limpa dados que o Roblox não salva (Instâncias, CFrames, etc)
 local function Sanitize(value: any): (any, boolean)
     local t = typeof(value)
     if t == "table" then
