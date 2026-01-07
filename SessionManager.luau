@@ -65,4 +65,3 @@ function SessionManager.Broadcast(sessionId: string, payload: {Type: string, Key
 end
 
 return SessionManager
-
