@@ -2,7 +2,6 @@
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 
--- Importação dos Especialistas (Módulos que você criou)
 local Config = require(script.Config)
 local Logger = require(script.Logger)
 local Budget = require(script.BudgetManager)
@@ -14,120 +13,121 @@ local Reconciler = require(script.DataReconciler)
 local DataSession = {}
 DataSession.__index = DataSession
 
--- Conecta o scheduler de performance de forma limpa
 RunService.Stepped:Connect(Budget.Step)
 
--- [CONSTRUTOR]
 function DataSession.new(id: string | number)
-    Logger.Info("Iniciando nova sessão: " .. id)
-    
-    local self = setmetatable({
+    return setmetatable({
         SessionID = tostring(id),
         Status = "Idle",
-        
         Cache = {},
         _userIds = {},
-        _connections = {}
+        _connections = {},
+        _storeName = "MainData"
     }, DataSession)
-
-    -- Escuta pedidos de liberação (Anti-Dupe)
-    table.insert(self._connections, Session.Listen(self.SessionID, function(message)
-        if message.Type == "RequestRelease" and message.TargetJobId == game.JobId then
-            Logger.Warn("Solicitação de liberação externa para: " .. message.Key, "Session")
-            self:Release(message.Key)
-        end
-    end))
-
-    return self
 end
 
--- [MÉTODO LOAD] - Substitui a carga manual por Reconciler + Persistence
-function DataSession:Load(storeName: string, key: string, template: {[any]: any}, userIds: {number}?)
+-- [MÉTODO LOAD] - Agora com Retentativas e Session Locking Real
+function DataSession:Load(key: string, template: {[any]: any}, userIds: {number}?)
     self.Status = "Loading"
     self._userIds = userIds or {}
-
-    -- Busca via PersistenceHandler (Gerencia Pcalls e Metadados)
-    local success, rawData, info = Persistence.Get(storeName, self.SessionID, key)
     
-    if not success then
-        Logger.Critical("Erro crítico no DataStore para a chave: " .. key, "Init")
+    local attempts = 0
+    local maxAttempts = 5 -- Inspirado no ProfileStore
+    local loadedData = nil
+
+    repeat
+        attempts += 1
+        
+        -- O UpdateSafe agora garante atomicidade (não deixa dois servidores lerem ao mesmo tempo)
+        local success, result = Persistence.UpdateSafe(
+            self._storeName,
+            self.SessionID,
+            key,
+            function(oldData)
+                -- Se houver dados e eles estiverem bloqueados por outro servidor,
+                -- o UpdateSafe (que atualizamos antes) retornará nil internamente.
+                return oldData or Reconciler.Reconcile({}, template)
+            end,
+            self._userIds,
+            false -- isReleasing
+        )
+
+        if success and result then
+            loadedData = result
+            break
+        else
+            Logger.Warn(`Conflito de sessão para {key}. Tentativa {attempts}/{maxAttempts}...`, "Init")
+            -- O ProfileStore espera um tempo (LOAD_REPEAT_PERIOD) antes de tentar de novo
+            task.wait(6) 
+            
+            -- Avisa o outro servidor para ele soltar o dado (MessagingService)
+            Session.Broadcast(self.SessionID, {
+                Type = "RequestRelease", 
+                Key = key, 
+                TargetJobId = "Any" -- Ou o JobId que estava no metadado se você o capturar
+            })
+        end
+    until attempts >= maxAttempts
+
+    if not loadedData then
+        Logger.Critical(`Não foi possível assumir o controle da sessão: {key}`, "Init")
         return nil
     end
 
-    -- Sincroniza dados antigos com o template novo (SOLID)
-    local finalData = Reconciler.Reconcile(rawData or {}, template)
-    
-    self.Cache[key] = finalData
+    self.Cache[key] = loadedData
     self.Status = "Active"
-    
-    Logger.Info("Dados carregados e sincronizados para: " .. key)
-    return finalData
+    return loadedData
 end
 
--- [MÉTODOS DE MANIPULAÇÃO] - Delega para o DataProcessor
-function DataSession:Edit(key: string, path: string, value: any)
-    if not self.Cache[key] then return end
-    Processor.Modify(self.Cache[key], path, value, "Set")
-    self:Replicate(path, value) -- Integração com seu sistema de rede
-end
-
-function DataSession:Add(key: string, path: string, amount: number)
-    if not self.Cache[key] then return end
-    local newValue = Processor.Modify(self.Cache[key], path, amount, "Add")
-    self:Replicate(path, newValue)
-end
-
--- [REPLICAÇÃO] - Usa sua lógica de percorrer UserIds
-function DataSession:Replicate(path: string, value: any)
-    for _, userId in ipairs(self._userIds) do
-        local player = Players:GetPlayerByUserId(userId)
-        if player then
-            -- Aqui você chama seu Network v2.1
-            -- Network:FireClient(player, "UpdateData", path, value)
-        end
-    end
-end
-
--- [MÉTODO SAVE] - Delega para o PersistenceHandler
-function DataSession:Save(key: string, isReleasing: boolean?)
-    if self.Status == "Loading" then return end
+-- [MÉTODO SAVE] - Agora usa UpdateSafe para garantir integridade
+function DataSession:Save(key: string)
+    if self.Status ~= "Active" then return end
     local data = self.Cache[key]
     if not data then return end
 
-    local previousStatus = self.Status
-    self.Status = isReleasing and "Releasing" or "Saving"
-
-    -- O PersistenceHandler cuida do SetAsync e Metadados de Lock
-    local success, err = Persistence.Set(
-        "MainStore", -- Nome da store (pode vir de uma config)
+    -- Em vez de SetAsync, usamos UpdateSafe para não atropelar locks
+    Persistence.UpdateSafe(
+        self._storeName,
         self.SessionID,
         key,
-        data,
+        function(_) return data end,
         self._userIds,
-        isReleasing or false
+        false
     )
-
-    if success and isReleasing then
-        -- Avisa via MessagingService que o dado está livre
-        Session.Broadcast(self.SessionID, {Type = "Released", Key = key, Data = data})
-    elseif not success then
-        Logger.Critical("Erro ao salvar " .. key .. ": " .. tostring(err), "Init")
-    end
-
-    self.Status = previousStatus
 end
 
--- [MÉTODO RELEASE] - Limpeza de memória
+-- [MÉTODO RELEASE] - Limpeza de lock igual ao ProfileStore
 function DataSession:Release(key: string)
-    self:Save(key, true)
+    if self.Status == "Idle" then return end
     
-    for _, conn in ipairs(self._connections) do
-        conn:Disconnect()
+    Logger.Info("Finalizando sessão e limpando Lock: " .. key)
+    
+    local success = Persistence.UpdateSafe(
+        self._storeName,
+        self.SessionID,
+        key,
+        function(_) return self.Cache[key] end,
+        self._userIds,
+        true -- Define isReleasing como true para limpar o JobId no DataStore
+    )
+
+    if success then
+        for _, conn in ipairs(self._connections) do conn:Disconnect() end
+        table.clear(self._connections)
+        self.Cache[key] = nil
+        self.Status = "Idle"
     end
-    
-    self.Cache[key] = nil
-    self.Status = "Idle"
-    Logger.Info("Sessão encerrada para: " .. key)
+end
+
+-- [MANIPULAÇÃO]
+function DataSession:Edit(key: string, path: string, value: any)
+    if self.Status ~= "Active" then return end
+    Processor.Modify(self.Cache[key], path, value, "Set")
+end
+
+function DataSession:Add(key: string, path: string, amount: number)
+    if self.Status ~= "Active" then return end
+    Processor.Modify(self.Cache[key], path, amount, "Add")
 end
 
 return DataSession
