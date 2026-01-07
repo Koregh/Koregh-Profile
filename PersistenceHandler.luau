@@ -28,7 +28,7 @@ local function NextInQueue(key: string)
 	end
 end
 
--- [UPDATE SAFE] - Sincronizado com o Init.lua
+-- Sincronizado com o Init.lua
 function PersistenceHandler.UpdateSafe(
 	storeName: string, 
 	jobId: string, -- Recebe o JobId da sessão para o Lock
@@ -45,7 +45,7 @@ function PersistenceHandler.UpdateSafe(
 	
 	local success, result = pcall(function()
 		return store:UpdateAsync(key, function(oldData, keyInfo)
-			-- 1. LÓGICA DE SESSION LOCK (Anti-Dupe)
+			-- LÓGICA DE SESSION LOCK (Anti-Dupe) --
 			if keyInfo then
 				local metadata = keyInfo:GetMetadata()
 				local currentLock = metadata[Config.METADATA_KEY]
@@ -57,10 +57,10 @@ function PersistenceHandler.UpdateSafe(
 				end
 			end
 
-			-- 2. TRANSFORMAÇÃO DOS DADOS (Reconciler ou Save)
+			-- TRANSFORMAÇÃO DOS DADOS (Reconciler ou Save) --
 			local newData = transformFunc(oldData)
 			
-			-- 3. CONFIGURAÇÃO DE METADADOS E GDPR
+			-- CONFIGURAÇÃO DE METADADOS E GDPR --
 			local options = Instance.new("DataStoreSetOptions")
 			
 			-- O segredo do Lock: Se estivermos a dar Release, limpamos o metadado
