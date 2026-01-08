@@ -1,6 +1,6 @@
-# Koregh DataService Framework v2.0
+# Koregh DataService Framework v0.0.1
 
-O DataService é um ecossistema de persistência de dados de alta integridade para a plataforma Roblox. Ele foi desenvolvido  focando em desacoplamento de módulos, segurança contra duplicação de itens (Session Locking) e conformidade rigorosa com leis de privacidade e proteção de dados (GDPR).
+O DataService é um ecossistema de persistência de dados de integridade para a plataforma Roblox. Ele foi desenvolvido  focando em desacoplamento de módulos, segurança contra duplicação de itens (Session Locking) e conformidade com leis de privacidade e proteção de dados (GDPR).
 
 # Arquitetura do Sistema
 
