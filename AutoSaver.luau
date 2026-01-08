@@ -9,7 +9,6 @@ local activeSessions: {SessionEntry} = {}
 local isRunning = false
 local SAVE_INTERVAL = 300 -- 5 minutos
 
--- [REGISTER]
 function AutoSaver.RegisterSession(session: any, key: string)
 	-- Evita duplicatas se o Load for chamado duas vezes
 	for _, entry in ipairs(activeSessions) do
@@ -20,7 +19,6 @@ function AutoSaver.RegisterSession(session: any, key: string)
 	Logger.Info("Sessão registrada no Auto-Save: " .. key, "AutoSaver")
 end
 
--- UNREGISTER --
 function AutoSaver.UnregisterSession(key: string)
 	for i, entry in ipairs(activeSessions) do
 		if entry.key == key then
@@ -30,7 +28,6 @@ function AutoSaver.UnregisterSession(key: string)
 	end
 end
 
--- START --
 function AutoSaver.Start()
 	if isRunning then return end
 	isRunning = true
