@@ -36,5 +36,4 @@ session:Release("User_123")
 Este projeto é distribuído sob a Licença MIT.
  * Lógica Original e Core: realkastien
  * Refatoração e Arquitetura: Koregh
- * Data de Refatoração: Janeiro de 2026
  * Link: https://github.com/realkastien/DataSession
