@@ -23,7 +23,7 @@ function SessionManager.Listen(sessionId: string, callback: (NetworkMessage) -> 
         return MessagingService:SubscribeAsync(TOPIC_NAME, function(receipt)
             local message: NetworkMessage = receipt.Data
             
-            -- SÓ processa se:
+            -- IMPORTANTE! SÓ processa se:
             --  For para este Jogador/Sessão
             --  Não for uma mensagem que este próprio servidor enviou
             --  For direcionada para este JobId ou para "Any"
