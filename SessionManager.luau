@@ -9,7 +9,7 @@ local SessionManager = {}
 export type NetworkMessage = {
     Type: "RequestRelease" | "Released" | "GlobalUpdate",
     SessionID: string,
-    TargetJobId: string, -- "Any" ou o JobId específico do servidor que deve soltar o dado
+    TargetJobId: string, 
     SourceJobId: string,
     Key: string,
     Data: any?
