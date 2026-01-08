@@ -1,5 +1,5 @@
 --!strict
--- DataService / DataReconciler.lua
+-- DataReconciler.lua
 local DataReconciler = {}
 
 -- Preenche dados faltantes no perfil do jogador com base em um template
