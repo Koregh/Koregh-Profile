@@ -24,7 +24,7 @@ function DataProcessor.GetPath(data: any, path: string, separator: string): (any
     local nodes = path:split(separator)
     local current = data
     for i = 1, #nodes - 1 do
-        -- Proteção extra: se o caminho existir mas não for tabela, forçamos virar tabela
+        -- Se o caminho existir mas não for tabela, forçamos virar tabela
         if type(current[nodes[i]]) ~= "table" then 
             current[nodes[i]] = {} 
         end
